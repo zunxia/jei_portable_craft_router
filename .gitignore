@@ -1,0 +1,7 @@
+/build/
+/logs/
+/docs/validation/
+*.log
+*.log.gz
+PLAN.md
+plan-2.md

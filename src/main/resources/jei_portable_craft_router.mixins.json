@@ -1,0 +1,9 @@
+{
+  "required": false,
+  "minVersion": "0.8.5",
+  "package": "compat.jeirouter.mixin",
+  "plugin": "compat.jeirouter.mixin.RouterMixinPlugin",
+  "compatibilityLevel": "JAVA_21",
+  "client": ["RecipeTransferButtonControllerMixin", "RecipeLayoutWithButtonsMixin", "LegacyRecipeTransferButtonControllerMixin", "LegacyRecipeLayoutWithButtonsMixin"],
+  "injectors": { "defaultRequire": 0 }
+}
