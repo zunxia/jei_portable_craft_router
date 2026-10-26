@@ -1,6 +1,6 @@
 ﻿$ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-& "$PSScriptRoot\smoke-client.ps1" -WithProbe -Session version-template -StartScenario 2 -PrepareOnly
+& "$PSScriptRoot\smoke-client.ps1" -WithProbe -Session version-template -StartScenario 2 -EndScenario 2 -PrepareOnly
 $test = "$root\build\version-smoke"
 New-Item -ItemType Directory -Force -Path "$test\mods" | Out-Null
 foreach ($old in @(Get-ChildItem -LiteralPath "$test\mods" -Filter '*.jar' -File)) {
@@ -39,7 +39,7 @@ foreach ($link in @('libraries','assets','natives')) {
 Copy-Item "$root\build\version-template\vanilla.jar" "$test\vanilla.jar" -Force
 Copy-Item "$root\build\version-template\options.txt" "$test\options.txt" -Force
 $argsText = [IO.File]::ReadAllText("$root\build\version-template\launch.args").Replace('version-template','version-smoke')
-[IO.File]::WriteAllText("$test\launch.args", '"-Drouter.probe.disabled=true"' + "`n" + $argsText, [Text.UTF8Encoding]::new($false))
+[IO.File]::WriteAllText("$test\launch.args", $argsText, [Text.UTF8Encoding]::new($false))
 $proc = Start-Process -FilePath 'E:\JAVA\bin\java.exe' -ArgumentList ('@"'+"$test\launch.args"+'"') -WorkingDirectory $test -WindowStyle Hidden -PassThru -RedirectStandardOutput "$test\stdout.log" -RedirectStandardError "$test\stderr.log"
 [IO.File]::WriteAllText("$test\process.id", $proc.Id.ToString())
-Write-Host "JEI version guard smoke started: PID $($proc.Id)"
+Write-Host "JEI changed version metadata routing check started: PID $($proc.Id)"

@@ -19,10 +19,8 @@ public final class RouterChecks {
         var probeScreen = new net.minecraft.client.gui.screens.Screen(net.minecraft.network.chat.Component.literal("probe")) {};
         compat.jeirouter.client.ClientEvents.screen(new net.neoforged.neoforge.client.event.ScreenEvent.Opening(probeScreen, probeScreen));
         check(!compat.jeirouter.RouterConfig.SPEC.isLoaded(), "opening a screen before config load no longer crashes");
-        check(compat.jeirouter.JeiVersionSupport.supported("19.50.0.414"), "ATM10 8.1 JEI version accepted");
-        check(compat.jeirouter.JeiVersionSupport.supported("19.57.0.446"), "ATM10 8.2 JEI version accepted");
-        check(!compat.jeirouter.JeiVersionSupport.supported(null) && !compat.jeirouter.JeiVersionSupport.supported("19.58.0.0"),
-            "missing or unvalidated JEI version rejected");
+        check(compat.jeirouter.apply.JeiTransferService.runtime().isEmpty(), "uninitialized JEI runtime is optional across old and new interfaces");
+        check(!RouterMixinPlugin.signatureMatches(null), "absent JEI target has no applicable adapter");
         ClassNode original = null;
         for (Path jar : Files.list(Path.of(args[0], "cp")).filter(p -> p.toString().endsWith(".jar")).toList()) {
             try (var z = new ZipFile(jar.toFile())) {
@@ -57,7 +55,9 @@ public final class RouterChecks {
             }
         }
         check(layout != null && RouterMixinPlugin.signatureMatches(layout), "actual JEI button layout is compatible");
-        check(RouterMixinPlugin.signatureMatches(layout, legacy) && !RouterMixinPlugin.signatureMatches(layout, !legacy),
+        boolean legacyLayout = layout.methods.stream().filter(m -> m.name.equals("create"))
+            .noneMatch(m -> m.desc.contains("RecipeTransferService;"));
+        check(RouterMixinPlugin.signatureMatches(layout, legacyLayout) && !RouterMixinPlugin.signatureMatches(layout, !legacyLayout),
             "only matching layout adapter is compatible");
         var withoutButtons = copy(layout);
         withoutButtons.fields.removeIf(f -> f.name.equals("buttons"));

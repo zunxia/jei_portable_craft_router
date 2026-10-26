@@ -11,7 +11,6 @@ import java.util.List;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
 import mezz.jei.api.constants.RecipeTypes;
-import mezz.jei.common.Internal;
 import compat.jeirouter.apply.JeiTransferService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -139,7 +138,7 @@ public final class ClientRouter {
         if (game.level == null) notifiedUnsupportedLevel = null;
         if (!broken && RouterConfig.ENABLED.get() && game.level != null && game.level != notifiedUnsupportedLevel &&
             game.screen instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen &&
-            Internal.getOptionalJeiRuntime().isPresent() && !serverSupported() && !candidates().isEmpty()) {
+            JeiTransferService.runtime().isPresent() && !serverSupported() && !candidates().isEmpty()) {
             message(Component.translatable("router.server_jei"));
             notifiedUnsupportedLevel = game.level;
         }
@@ -185,7 +184,7 @@ public final class ClientRouter {
         }
     }
     private static <T> void showRecipe(IRecipeLayoutDrawable<T> layout) {
-        Internal.getOptionalJeiRuntime().ifPresent(runtime -> runtime.getRecipesGui()
+        JeiTransferService.runtime().ifPresent(runtime -> runtime.getRecipesGui()
             .showRecipes(layout.getRecipeCategory(), List.of(layout.getRecipe()), List.of()));
     }
     public static void failSoft(Throwable error) {

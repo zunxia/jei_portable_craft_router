@@ -19,6 +19,6 @@ public final class JeiPortableRouter {
             try { compat.jeirouter.terminal.SnapshotItemLocator.register(); }
             catch (RuntimeException | LinkageError e) { LOG.warn("AE2 snapshot locator unavailable; AE2 routing disabled", e); }
         }
-        LOG.info("{} 1.3.2 loaded; server-authoritative portable crafting routing", ID);
+        LOG.info("{} 1.3.5 loaded; server-authoritative portable crafting routing", ID);
     }
 }

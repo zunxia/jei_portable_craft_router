@@ -1,0 +1,3 @@
+# Count Java source in GitHub language statistics; keep helper scripts executable as PowerShell.
+*.java linguist-detectable=true
+*.ps1 linguist-detectable=false

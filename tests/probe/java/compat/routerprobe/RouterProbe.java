@@ -56,7 +56,6 @@ public final class RouterProbe {
         private static volatile String failure;
         private static final AtomicBoolean verified = new AtomicBoolean();
         private static final String REMOTE = System.getProperty("router.probe.remote", "");
-        private static final boolean DISABLED_CHECK = Boolean.getBoolean("router.probe.disabled");
         private static final boolean UNSUPPORTED_CHECK = Boolean.getBoolean("router.probe.unsupported");
         private static final boolean REMOTE_AE2 = Boolean.getBoolean("router.probe.remoteAe2");
         private static final boolean REMOTE_EMPTY = Boolean.getBoolean("router.probe.empty");
@@ -65,12 +64,14 @@ public final class RouterProbe {
         private static double initialPower;
         private static volatile Runnable pendingGridSetup;
         private static String screenshot;
+        private static int terminalSwitch;
+        private static boolean switching() { return scenario == 53 || scenario == 54; }
         private static boolean matrix() { return scenario >= 16 && scenario <= 27; }
         private static boolean universal() { return scenario == 7 || scenario == 15 || scenario == 49 || matrix() && scenario >= 22; }
         private static boolean curio() { return scenario == 10 || scenario == 15 || scenario == 49 || matrix() && (scenario - 16) % 6 >= 3; }
         private static int linkState() { return matrix() ? (scenario - 16) % 3 : 0; }
         private static boolean blocked() { return scenario >= 28 && scenario <= 33 || scenario == 40 || scenario == 41; }
-        private static boolean pattern() { return scenario >= 42 && scenario <= 48 || scenario == 51 || scenario == 52; }
+        private static boolean pattern() { return scenario >= 42 && scenario <= 48 || scenario == 51 || scenario == 52 || switching(); }
         @SubscribeEvent public static void render(net.neoforged.neoforge.client.event.ScreenEvent.Render.Post event) {
             if (screenshot == null || !(event.getScreen() instanceof mezz.jei.gui.recipes.RecipesGui gui)) return;
             try {
@@ -118,7 +119,7 @@ public final class RouterProbe {
                     pass("isolated client booted and world creation started");
                 }
                 if (stage > 0 && stage < 9 && tick > deadline) throw new AssertionError("scenario timeout: " + scenario + "/" + stage);
-                if (stage == 1 && mc.player != null && mc.level != null && Internal.getOptionalJeiRuntime().isPresent()) {
+                if (stage == 1 && mc.player != null && mc.level != null && JeiTransferService.runtime().isPresent()) {
                     if (!REMOTE.isEmpty()) { stage = 3; readyTick = tick + 40; deadline = tick + 400; return; }
                     startSetup(); stage = 2;
                 }
@@ -241,7 +242,17 @@ public final class RouterProbe {
                         } catch (Throwable e) { failure = e.toString(); }
                     });
                 }
-                if (stage == 7 && verified.get()) next();
+                if (stage == 7 && verified.get()) {
+                    if (switching()) {
+                        if (mc.screen instanceof mezz.jei.gui.recipes.RecipesGui gui) gui.onClose();
+                        terminalSwitch = 0; switchTerminal();
+                    } else next();
+                }
+                if (stage == 13 && tick >= readyTick) verifyTerminalSwitch();
+                if (stage == 14 && verified.get()) {
+                    if (++terminalSwitch == 6) next();
+                    else switchTerminal();
+                }
             } catch (Throwable e) {
                 stage = 9;
                 LoggerFactory.getLogger("router_probe").error("PROBE FAIL", e);
@@ -285,10 +296,10 @@ public final class RouterProbe {
                         var terminal = new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse(scenario == 7 ? "ae2wtlib:wireless_universal_terminal" : "ae2:wireless_crafting_terminal")));
                         if (universal()) terminal = de.mari_023.ae2wtlib.wut.WTDefinitions.CRAFTING.universalTerminal().copy();
                         if (pattern()) {
-                            terminal = scenario == 44 || scenario == 45 || scenario == 47
+                            terminal = scenario == 44 || scenario == 45 || scenario == 47 || switching()
                                 ? de.mari_023.ae2wtlib.wut.WTDefinitions.CRAFTING.universalTerminal().copy()
                                 : new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.parse("ae2wtlib:wireless_pattern_encoding_terminal")));
-                            if (scenario == 44 || scenario == 45) terminal.set(de.mari_023.ae2wtlib.wut.WTDefinitions.PATTERN_ENCODING.componentType(), com.mojang.datafixers.util.Unit.INSTANCE);
+                            if (scenario == 44 || scenario == 45 || switching()) terminal.set(de.mari_023.ae2wtlib.wut.WTDefinitions.PATTERN_ENCODING.componentType(), com.mojang.datafixers.util.Unit.INSTANCE);
                             sp.getInventory().setItem(1, ItemStack.EMPTY);
                         }
                         if (scenario == 15 || scenario == 49) {
@@ -300,7 +311,7 @@ public final class RouterProbe {
                         initialPower = item.getAECurrentPower(terminal);
                         if (linkState() != 1 && scenario != 52) WirelessTerminalItem.LINKABLE_HANDLER.link(terminal, GlobalPos.of(sp.level().dimension(), accessPos));
                         if (scenario == 9) sp.teleportTo(120.5, -58, 120.5);
-                        if (curio() || scenario == 43 || scenario == 45) CuriosApi.getCuriosInventory(sp).orElseThrow().getEquippedCurios().setStackInSlot(0, terminal);
+                        if (curio() || scenario == 43 || scenario == 45 || scenario == 54) CuriosApi.getCuriosInventory(sp).orElseThrow().getEquippedCurios().setStackInSlot(0, terminal);
                         else sp.getInventory().setItem(2, terminal);
                         if (scenario == 52) {
                             var universal = de.mari_023.ae2wtlib.wut.WTDefinitions.PATTERN_ENCODING.universalTerminal().copy();
@@ -437,7 +448,7 @@ public final class RouterProbe {
                 }
                 check(state.visible && state.active, "pattern button visible and active scenario " + scenario);
                 var candidates = TerminalPriorityResolver.findPatterns(mc.player);
-                check(!candidates.isEmpty() && candidates.getFirst().reference().curio() == (scenario == 43 || scenario == 45 || REMOTE_PATTERN), "pattern resolver locates correct inventory or Curios slot");
+                check(!candidates.isEmpty() && candidates.getFirst().reference().curio() == (scenario == 43 || scenario == 45 || scenario == 54 || REMOTE_PATTERN), "pattern resolver locates correct inventory or Curios slot");
                 check(controller.onPress(new Input(true)) && mc.player.containerMenu == mc.player.inventoryMenu, "simulated pattern click sends no open request");
                 check(controller.onPress(new Input(false)), "actual pattern button accepts click");
                 readyTick = tick + 60; stage = REMOTE_PATTERN ? 4 : 8; return;
@@ -448,13 +459,11 @@ public final class RouterProbe {
             var state = new ButtonState();
             if (scenario == 5) RouterConfig.ENABLED.set(false);
             controller.initState(state);
-            if (DISABLED_CHECK || UNSUPPORTED_CHECK) {
-                check(!state.active, UNSUPPORTED_CHECK ? "server without JEI keeps oversized button disabled" : "incompatible JEI version boots and keeps oversized button disabled");
-                if (UNSUPPORTED_CHECK) {
-                    compat.jeirouter.client.ClientRouter.tick();
-                    check(!compat.jeirouter.client.ClientRouter.serverSupported(), "server JEI handshake prevents all routing packets");
-                }
-                pass("DISABLED VERSION CHECK COMPLETE"); stage = 9; mc.stop(); return;
+            if (UNSUPPORTED_CHECK) {
+                check(!state.active, "server without JEI keeps oversized button disabled");
+                compat.jeirouter.client.ClientRouter.tick();
+                check(!compat.jeirouter.client.ClientRouter.serverSupported(), "server JEI handshake prevents all routing packets");
+                pass("UNSUPPORTED SERVER CHECK COMPLETE"); stage = 9; mc.stop(); return;
             }
             if (scenario == 0 || scenario == 5) {
                 check(!state.active, scenario == 0 ? "no terminal preserves disabled oversized button" : "global toggle preserves original disabled button");
@@ -517,6 +526,56 @@ public final class RouterProbe {
                 } catch (Throwable e) { failure = e.toString(); }
             });
         }
+        private static de.mari_023.ae2wtlib.api.registration.WTDefinition switchTarget() {
+            return terminalSwitch % 2 == 0 ? de.mari_023.ae2wtlib.wut.WTDefinitions.CRAFTING : de.mari_023.ae2wtlib.wut.WTDefinitions.PATTERN_ENCODING;
+        }
+        private static void switchTerminal() {
+            // Same native packet used by the WUT sidebar; do not reopen through the router.
+            net.neoforged.neoforge.network.PacketDistributor.sendToServer(new de.mari_023.ae2wtlib.networking.SelectTerminalPacket(switchTarget()));
+            stage = 13; readyTick = tick + 40;
+        }
+        private static void verifyTerminalSwitch() {
+            var mc = Minecraft.getInstance();
+            check(mc.player != null, "WUT sidebar switch keeps client connected scenario " + scenario);
+            var expected = switchTarget();
+            check(mc.player.containerMenu.getType() == expected.menuType(), "client receives switched WUT menu " + terminalSwitch);
+            var host = (de.mari_023.ae2wtlib.api.terminal.WTMenuHost) ((appeng.menu.AEBaseMenu) mc.player.containerMenu).getTarget();
+            check(host.getItemStack().get(de.mari_023.ae2wtlib.api.AE2wtlibComponents.CURRENT_TERMINAL) == expected,
+                "client locator carries current WUT mode " + terminalSwitch);
+            stage = 14; verified.set(false);
+            mc.getSingleplayerServer().execute(() -> {
+                try {
+                    var sp = mc.getSingleplayerServer().getPlayerList().getPlayer(mc.player.getUUID());
+                    check(sp.containerMenu.getType() == expected.menuType(), "server and client WUT modes agree " + terminalSwitch);
+                    var serverLocator = (compat.jeirouter.terminal.SnapshotItemLocator) ((appeng.menu.AEBaseMenu) sp.containerMenu).getLocator();
+                    var actual = serverLocator.reference().get(sp);
+                    check(serverLocator.locateItem(sp) == actual, "server WUT locator uses original inventory item");
+                    var bytes = new net.minecraft.network.RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(), sp.registryAccess());
+                    try {
+                        appeng.menu.locator.MenuLocators.writeToPacket(bytes, serverLocator);
+                        var decoded = (compat.jeirouter.terminal.SnapshotItemLocator) appeng.menu.locator.MenuLocators.readFromPacket(bytes);
+                        check(ItemStack.matches(decoded.snapshot(), actual), "serialized locator contains latest complete item components");
+                    } finally { bytes.release(); }
+                    if (terminalSwitch == 5) {
+                        var ref = serverLocator.reference();
+                        var replacement = actual.copy();
+                        replacement.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, net.minecraft.network.chat.Component.literal("Updated terminal"));
+                        ref.set(sp, replacement);
+                        var updatedBytes = new net.minecraft.network.RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(), sp.registryAccess());
+                        try {
+                            appeng.menu.locator.MenuLocators.writeToPacket(updatedBytes, serverLocator);
+                            var decoded = (compat.jeirouter.terminal.SnapshotItemLocator) appeng.menu.locator.MenuLocators.readFromPacket(updatedBytes);
+                            check(ItemStack.matches(decoded.snapshot(), replacement), "serialization rereads replaced same-item stack without a prior lookup");
+                        } finally { updatedBytes.release(); }
+                        ref.set(sp, new ItemStack(Items.STONE));
+                        check(serverLocator.locateItem(sp).isEmpty(), "replaced terminal is rejected by server locator");
+                        ref.set(sp, actual);
+                        check(serverLocator.locateItem(sp) == actual, "restored real terminal is located again");
+                    }
+                    verified.set(true);
+                } catch (Throwable e) { failure = e.toString(); }
+            });
+        }
         private static RecipeTransferButtonController transferController(IRecipeLayoutDrawable<?> layout,
                 net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> screen) {
             try {
@@ -527,6 +586,8 @@ public final class RouterProbe {
                 var modernType = Class.forName("mezz.jei.common.transfer.RecipeTransferService");
                 var nativeService = modernType.getConstructor(mezz.jei.api.recipe.transfer.IRecipeTransferManager.class)
                     .newInstance(Internal.getJeiRuntime().getRecipeTransferManager());
+                var transitional = java.util.Arrays.stream(constructors).filter(c -> c.getParameterCount() == 3).findFirst();
+                if (transitional.isPresent()) return (RecipeTransferButtonController) transitional.get().newInstance(layout, gui, nativeService);
                 var constructor = java.util.Arrays.stream(constructors).filter(c -> c.getParameterCount() == 5).findFirst().orElseThrow();
                 constructor.setAccessible(true);
                 return (RecipeTransferButtonController) constructor.newInstance(layout, nativeService,

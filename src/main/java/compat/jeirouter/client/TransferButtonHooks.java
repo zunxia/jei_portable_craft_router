@@ -21,7 +21,7 @@ public final class TransferButtonHooks {
                 state.setActive(true); state.setVisible(true);
                 var candidate = ClientRouter.candidates().getFirst();
                 var player = Minecraft.getInstance().player;
-                var runtime = Internal.getOptionalJeiRuntime();
+                var runtime = JeiTransferService.runtime();
                 if (player != null && runtime.isPresent()) state.setIcon(runtime.get().getJeiHelpers().getGuiHelper()
                     .createDrawableItemStack(candidate.reference().get(player).copy()));
                 var materials = MaterialGate.preview(RecipeSnapshot.capture(layout, false), candidate.adapter().id());

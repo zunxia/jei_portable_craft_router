@@ -2,7 +2,6 @@ package compat.jeirouter.mixin;
 
 import java.util.List;
 import java.util.Set;
-import compat.jeirouter.JeiVersionSupport;
 import net.neoforged.fml.loading.LoadingModList;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
@@ -16,14 +15,10 @@ public final class RouterMixinPlugin implements IMixinConfigPlugin {
     public boolean shouldApplyMixin(String target, String mixin) {
         try {
             var mods = LoadingModList.get();
-            String version = mods == null ? null : mods.getMods().stream().filter(m -> m.getModId().equals("jei"))
-                .map(m -> m.getVersion().toString()).findFirst().orElse(null);
-            if (!JeiVersionSupport.supported(version)) { warn("Supported JEI (" + JeiVersionSupport.DESCRIPTION + ") not present; routing mixin disabled"); return false; }
-            boolean legacy = JeiVersionSupport.legacy(version);
-            if (legacy != mixin.contains(".Legacy")) return false;
+            if (mods == null || mods.getMods().stream().noneMatch(m -> m.getModId().equals("jei"))) return false;
             ClassNode node = MixinService.getService().getBytecodeProvider().getClassNode(target);
-            boolean compatible = signatureMatches(node, legacy);
-            if (!compatible) warn("JEI controller signature changed; routing mixin disabled");
+            boolean compatible = signatureMatches(node, mixin.contains(".Legacy"));
+            if (!compatible && !signatureMatches(node)) warn("JEI interface unavailable for " + target + "; routing mixin cannot apply");
             return compatible;
         } catch (Exception | LinkageError e) {
             warn("Unable to inspect JEI controller; routing mixin disabled: " + e); return false;
@@ -34,12 +29,14 @@ public final class RouterMixinPlugin implements IMixinConfigPlugin {
         return signatureMatches(n, false) || signatureMatches(n, true);
     }
     public static boolean signatureMatches(ClassNode n, boolean legacy) {
+        if (n == null) return false;
         if (n.name.equals("mezz/jei/gui/recipes/RecipeLayoutWithButtons")) return field(n, "buttons", "Ljava/util/List;") &&
             field(n, "recipeLayout", "Lmezz/jei/api/gui/IRecipeLayoutDrawable;") &&
             method(n, "getAbsoluteButtonArea", "(I)Lmezz/jei/common/util/ImmutableRect2i;") &&
             method(n, "create", "(Lmezz/jei/api/gui/IRecipeLayoutDrawable;Lmezz/jei/gui/bookmarks/RecipeBookmark;Lmezz/jei/gui/bookmarks/BookmarkList;Lmezz/jei/gui/recipes/RecipesGui;" +
                 (legacy ? "" : "Lmezz/jei/common/transfer/RecipeTransferService;") + "Ljava/util/List;)Lmezz/jei/gui/recipes/IRecipeLayoutWithButtons;");
-        return field(n, "recipeLayout", "Lmezz/jei/api/gui/IRecipeLayoutDrawable;") &&
+        return n.name.equals("mezz/jei/gui/recipes/RecipeTransferButtonController") &&
+            field(n, "recipeLayout", "Lmezz/jei/api/gui/IRecipeLayoutDrawable;") &&
             (legacy ? field(n, "recipesGui", "Lmezz/jei/gui/recipes/RecipesGui;") :
             (field(n, "recipeTransferService", "Lmezz/jei/common/transfer/RecipeTransferService;") &&
             field(n, "screenSupplier", "Ljava/util/function/Supplier;") &&

@@ -1,7 +1,6 @@
 package compat.jeirouter.apply;
 
 import compat.jeirouter.JeiPortableRouter;
-import mezz.jei.common.Internal;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.CraftingMenu;
@@ -19,7 +18,7 @@ public final class MaterialGate {
     public static GateResult unsupported() { return new GateResult(Verdict.UNKNOWN, 0, Component.translatable("router.jei_cannot_apply")); }
     public static GateResult check(AbstractContainerMenu menu, RecipeSnapshot snapshot) {
         try {
-            var runtime = Internal.getOptionalJeiRuntime();
+            var runtime = JeiTransferService.runtime();
             if (runtime.isEmpty() || snapshot.craftingRecipe() == null) return unknown();
             if (runtime.get().getRecipeTransferManager().getRecipeTransferHandler(menu, snapshot.layout().getRecipeCategory()).isEmpty()) return unsupported();
             var mods = ModList.get();

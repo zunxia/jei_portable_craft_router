@@ -22,7 +22,7 @@ foreach ($mod in $mods) {
 }
 Copy-Item "$root\build\router_probe.jar" "$test\mods" -Force
 Get-ChildItem -LiteralPath "$test\mods" -Filter "jei_portable_craft_router-*.jar" | Remove-Item -Force
-Copy-Item "$root\build\jei_portable_craft_router-1.3.2.jar" "$test\mods" -Force
+Copy-Item "$root\build\jei_portable_craft_router-1.3.5.jar" "$test\mods" -Force
 # Dedicated smoke server binds only localhost; it never touches the existing server world.
 [IO.File]::WriteAllText("$test\server.properties", "server-ip=127.0.0.1`nserver-port=25576`nonline-mode=false`nview-distance=2`nsimulation-distance=3`nspawn-protection=0`nlevel-type=minecraft:flat`nmax-players=4`n", [Text.UTF8Encoding]::new($false))
 Copy-Item -LiteralPath "$ServerRoot\eula.txt" -Destination "$test\eula.txt" -Force

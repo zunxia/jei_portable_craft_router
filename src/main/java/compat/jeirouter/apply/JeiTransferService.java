@@ -6,6 +6,7 @@ import java.util.Optional;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
 import mezz.jei.api.recipe.transfer.IRecipeTransferManager;
+import mezz.jei.api.runtime.IJeiRuntime;
 import mezz.jei.common.Internal;
 import mezz.jei.gui.recipes.RecipesGui;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -28,6 +29,11 @@ public final class JeiTransferService {
         catch (ReflectiveOperationException e) { throw failure(e); }
     }
     public static JeiTransferService current() { return new JeiTransferService(Internal.getJeiRuntime().getRecipeTransferManager()); }
+    public static Optional<IJeiRuntime> runtime() {
+        // getOptionalJeiRuntime was added after the first controller-based JEI releases.
+        try { return Optional.ofNullable(Internal.getJeiRuntime()); }
+        catch (IllegalStateException e) { return Optional.empty(); }
+    }
     public Optional<IRecipeTransferError> getTransferRecipeError(AbstractContainerScreen<?> screen, IRecipeLayoutDrawable<?> layout, Player player) {
         @SuppressWarnings("unchecked")
         var result = (Optional<IRecipeTransferError>) invoke(ERROR, screen, layout, player, false);
@@ -44,7 +50,9 @@ public final class JeiTransferService {
     public static boolean serverSupported() {
         var connection = Internal.getServerConnection();
         if (connection == null || !connection.isJeiOnServer()) return false;
-        return connection.canSendPacket(CHANNEL);
+        var client = net.minecraft.client.Minecraft.getInstance().getConnection();
+        // Older JEI connections expose only isJeiOnServer; NeoForge supplies the actual channel handshake.
+        return client != null && client.hasChannel(CHANNEL);
     }
     private Object invoke(Method method, AbstractContainerScreen<?> screen, IRecipeLayoutDrawable<?> layout, Player player, boolean maxTransfer) {
         Object[] args = MODERN == null

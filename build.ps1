@@ -69,7 +69,7 @@ $sources = @(Get-ChildItem "$root\src\main\java" -Recurse -Filter '*.java' | For
 if ($LASTEXITCODE -ne 0) { throw "javac failed: $LASTEXITCODE" }
 Get-ChildItem "$root\src\main\resources" -Force | Copy-Item -Destination "$build\classes" -Recurse -Force
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-$dist = "$build\jei_portable_craft_router-1.3.2.jar"
+$dist = "$build\jei_portable_craft_router-1.3.5.jar"
 if (Test-Path -LiteralPath $dist) { Remove-Item -LiteralPath $dist -Force }
 & "$root\scripts\package.ps1" -Classes "$build\classes" -OutputJar $dist
 Write-Host "OK: $dist ($((Get-Item -LiteralPath $dist).Length) bytes), $($sources.Count) Java files"

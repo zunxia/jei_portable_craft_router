@@ -1,5 +1,5 @@
 Manifest-Version: 1.0
 Implementation-Title: JEI Portable Craft Router
-Implementation-Version: 1.3.2
+Implementation-Version: 1.3.5
 FMLModType: MOD
 

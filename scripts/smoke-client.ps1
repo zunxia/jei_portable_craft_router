@@ -1,8 +1,9 @@
-﻿param([switch]$WithProbe, [int]$StartScenario = 0, [int]$EndScenario = 52, [string]$Session = 'smoke-client', [string]$Remote = '', [string]$PlayerName = 'RouterSmoke', [switch]$UnsupportedCheck, [switch]$Ae2Curios, [switch]$EmptyMaterials, [string]$RouterJar = '', [string]$Language = 'en_us', [switch]$Pattern, [string]$NeoForgeVersion = '21.1.249', [string]$InstanceDir = '', [switch]$PrepareOnly)
+﻿param([switch]$WithProbe, [int]$StartScenario = 0, [int]$EndScenario = 54, [string]$Session = 'smoke-client', [string]$Remote = '', [string]$PlayerName = 'RouterSmoke', [switch]$UnsupportedCheck, [switch]$Ae2Curios, [switch]$EmptyMaterials, [string]$RouterJar = '', [string]$JeiJar = '', [string]$Language = 'en_us', [switch]$Pattern, [string]$NeoForgeVersion = '21.1.249', [string]$InstanceDir = '', [switch]$PrepareOnly)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $instance = if ($InstanceDir) { $InstanceDir } else { (Get-Content -Raw -Encoding UTF8 "$root\build\instance.txt").Trim() }
 $instance = (Resolve-Path -LiteralPath $instance).Path
+if ($JeiJar) { $JeiJar = (Resolve-Path -LiteralPath $JeiJar).Path }
 $instanceName = Split-Path $instance -Leaf
 $mc = Split-Path (Split-Path $instance -Parent) -Parent
 $libraries = Join-Path $mc 'libraries'
@@ -31,9 +32,13 @@ foreach ($old in @(Get-ChildItem -LiteralPath "$smoke\mods" -Filter '*.jar' -Fil
 $testMods = @(Get-ChildItem -LiteralPath "$instance\mods" -Filter '*.jar' |
     Where-Object { $_.Name -match '^(jei-|appliedenergistics|ae2wtlib|ae2jei|crafting_on|curios|cyclopscore|integrateddynamics|integratedtunnels|integratedcrafting|commoncapabilities|guideme)|integratedterminals-' })
 foreach ($mod in $testMods) { Copy-Item -LiteralPath $mod.FullName -Destination "$smoke\mods" -Force }
+if ($JeiJar) {
+    Get-ChildItem -LiteralPath "$smoke\mods" -Filter 'jei-*.jar' | Remove-Item -Force
+    Copy-Item -LiteralPath $JeiJar -Destination "$smoke\mods" -Force
+}
 Write-Host "Copied $($testMods.Count) dependency mods"
 Get-ChildItem -LiteralPath "$smoke\mods" -Filter "jei_portable_craft_router-*.jar" | Remove-Item -Force
-if (-not $RouterJar) { $RouterJar = "$root\build\jei_portable_craft_router-1.3.2.jar" }
+if (-not $RouterJar) { $RouterJar = "$root\build\jei_portable_craft_router-1.3.5.jar" }
 Copy-Item -LiteralPath $RouterJar -Destination "$smoke\mods\jei_portable_craft_router-test.jar" -Force
 if ($WithProbe) { Copy-Item "$root\build\router_probe.jar" "$smoke\mods" -Force }
 $cp = [Collections.Generic.List[string]]::new()
